@@ -29,14 +29,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, SERVICE_TYPE_DEVICE_NAMES
 from .coordinator import EnergyZeroData, EnergyZeroDataUpdateCoordinator
 
-
 @dataclass(frozen=True, kw_only=True)
 class EnergyZeroSensorEntityDescription(SensorEntityDescription):
     """Describes an EnergyZero sensor entity."""
 
-    value_fn: Callable[[EnergyZeroData], float | datetime | None | list[dict[str, float | datetime]]]
+    value_fn: Callable[[EnergyZeroData], float | datetime | None]
     service_type: str
-
 
 SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
@@ -124,7 +122,8 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
         key="timestamp_prices",
         translation_key="timestamp_prices",
         service_type="today_energy",
-        value_fn=lambda data: data.energy_today.timestamp_prices,
+        native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
+        value_fn=lambda data: data.energy_today.current_price,
     ),
 )
 
@@ -196,6 +195,16 @@ class EnergyZeroSensorEntity(
         )
 
     @property
-    def native_value(self) -> float | datetime | None | list[dict[str, float | datetime]]:
+    def native_value(self) -> float | datetime | None:
         """Return the state of the sensor."""
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, any]:
+        """Return the state attributes of the sensor."""
+        if self.entity_description.key == "timestamp_prices":
+            return {
+                "timestamp_prices": self.coordinator.data.energy_today.timestamp_prices,
+                "average_price": self.coordinator.data.energy_today.average_price,
+            }
+        return {}
