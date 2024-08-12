@@ -42,6 +42,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="current_hour_price",
         translation_key="current_hour_price",
+        name="Current Hour Price",
         service_type="today_gas",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfVolume.CUBIC_METERS}",
@@ -50,6 +51,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="next_hour_price",
         translation_key="next_hour_price",
+        name="Next Hour Price",
         service_type="today_gas",
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfVolume.CUBIC_METERS}",
         value_fn=lambda data: get_gas_price(data, 1),
@@ -57,6 +59,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="current_hour_price",
         translation_key="current_hour_price",
+        name="Current Hour Price",
         service_type="today_energy",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
@@ -65,6 +68,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="next_hour_price",
         translation_key="next_hour_price",
+        name="Next Hour Price",
         service_type="today_energy",
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
         value_fn=lambda data: data.energy_today.price_at_time(
@@ -74,6 +78,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="average_price",
         translation_key="average_price",
+        name="Average Price Today",
         service_type="today_energy",
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
         value_fn=lambda data: data.energy_today.average_price,
@@ -81,6 +86,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="max_price",
         translation_key="max_price",
+        name="Highest Price Today",
         service_type="today_energy",
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
         value_fn=lambda data: data.energy_today.extreme_prices[1],
@@ -88,6 +94,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="min_price",
         translation_key="min_price",
+        name="Lowest Price Today",
         service_type="today_energy",
         native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
         value_fn=lambda data: data.energy_today.extreme_prices[0],
@@ -95,6 +102,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="highest_price_time",
         translation_key="highest_price_time",
+        name="Time of Highest Price Today",
         service_type="today_energy",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda data: data.energy_today.highest_price_time,
@@ -102,6 +110,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="lowest_price_time",
         translation_key="lowest_price_time",
+        name="Time of Lowest Price Today",
         service_type="today_energy",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda data: data.energy_today.lowest_price_time,
@@ -109,6 +118,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="percentage_of_max",
         translation_key="percentage_of_max",
+        name="Current Percentage of Highest Price",
         service_type="today_energy",
         native_unit_of_measurement=PERCENTAGE,
         value_fn=lambda data: data.energy_today.pct_of_max_price,
@@ -116,6 +126,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="hours_priced_equal_or_lower",
         translation_key="hours_priced_equal_or_lower",
+        name="Hours Priced Equal or Lower",
         service_type="today_energy",
         native_unit_of_measurement=UnitOfTime.HOURS,
         value_fn=lambda data: data.energy_today.hours_priced_equal_or_lower,
@@ -123,6 +134,7 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
     EnergyZeroSensorEntityDescription(
         key="timestamp_prices",
         translation_key="timestamp_prices",
+        name="Hourly Prices Today",
         service_type="today_energy",
         value_fn=lambda data: process_timestamp_prices(data),
     ),
@@ -131,8 +143,10 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
 def process_timestamp_prices(data: EnergyZeroData) -> str:
     """Process timestamp prices to a condensed string."""
     prices = data.energy_today.prices
-    return ",".join(f"{h:02d}:{p:.2f}" for h, p in 
-                    ((k.hour, v) for k, v in prices.items()))
+    # Sort the prices by their timestamp
+    sorted_prices = sorted(prices.items(), key=lambda x: x[0])
+    # Create the string with sorted prices
+    return ",".join(f"{k.hour:02d}:{v:.2f}" for k, v in sorted_prices)
 
 
 def get_gas_price(data: EnergyZeroData, hours: int) -> float | None:
@@ -185,6 +199,7 @@ class EnergyZeroSensorEntity(
         """Initialize EnergyZero sensor."""
         super().__init__(coordinator=coordinator)
         self.entity_description = description
+        self._attr_name = description.name
         self.entity_id = (
             f"{SENSOR_DOMAIN}.{DOMAIN}_{description.service_type}_{description.key}"
         )
