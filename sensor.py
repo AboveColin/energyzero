@@ -35,7 +35,7 @@ from .coordinator import EnergyZeroData, EnergyZeroDataUpdateCoordinator
 class EnergyZeroSensorEntityDescription(SensorEntityDescription):
     """Describes an EnergyZero sensor entity."""
 
-    value_fn: Callable[[EnergyZeroData], float | datetime | None]
+    value_fn: Callable[[HomeAssistant, EnergyZeroData], float | datetime | str | None]
     service_type: str
 
 
@@ -223,7 +223,9 @@ class EnergyZeroSensorEntity(
             name=SERVICE_TYPE_DEVICE_NAMES[self.entity_description.service_type],
         )
 
-    @property
-    def native_value(self) -> float | datetime | str | None:
-        """Return the state of the sensor."""
+@property
+def native_value(self) -> float | datetime | str | None:
+    """Return the state of the sensor."""
+    if self.entity_description.key == "timestamp_prices":
         return self.entity_description.value_fn(self.hass, self.coordinator.data)
+    return self.entity_description.value_fn(self.coordinator.data)
