@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from homeassistant.util import dt as dt_util
 
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN,
@@ -26,6 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, SERVICE_TYPE_DEVICE_NAMES
 from .coordinator import EnergyZeroData, EnergyZeroDataUpdateCoordinator
@@ -137,14 +137,14 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
         translation_key="timestamp_prices",
         name="Hourly Prices Today",
         service_type="today_energy",
-        value_fn=lambda data: process_timestamp_prices(data),
+        value_fn=lambda hass, data: process_timestamp_prices(hass, data),
     ),
 )
 
-def process_timestamp_prices(data: EnergyZeroData) -> str:
+def process_timestamp_prices(hass: HomeAssistant, data: EnergyZeroData) -> str:
     """Process timestamp prices to a condensed string, adjusting for local timezone."""
     prices = data.energy_today.prices
-    local_tz = dt_util.get_time_zone(data.hass.config.time_zone)
+    local_tz = dt_util.get_time_zone(hass.config.time_zone)
     
     # Convert UTC times to local timezone and sort
     local_prices = sorted(
@@ -226,4 +226,4 @@ class EnergyZeroSensorEntity(
     @property
     def native_value(self) -> float | datetime | str | None:
         """Return the state of the sensor."""
-        return self.entity_description.value_fn(self.coordinator.data)
+        return self.entity_description.value_fn(self.hass, self.coordinator.data)
