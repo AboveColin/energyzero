@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from homeassistant.util import dt as dt_util
 
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN,
@@ -141,12 +142,18 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
 )
 
 def process_timestamp_prices(data: EnergyZeroData) -> str:
-    """Process timestamp prices to a condensed string."""
+    """Process timestamp prices to a condensed string, adjusting for local timezone."""
     prices = data.energy_today.prices
-    # Sort the prices by their timestamp
-    sorted_prices = sorted(prices.items(), key=lambda x: x[0])
-    # Create the string with sorted prices
-    return ",".join(f"{k.hour:02d}:{v:.2f}" for k, v in sorted_prices)
+    local_tz = dt_util.get_time_zone(data.hass.config.time_zone)
+    
+    # Convert UTC times to local timezone and sort
+    local_prices = sorted(
+        (dt_util.as_local(k.replace(tzinfo=dt_util.UTC)).replace(tzinfo=None), v)
+        for k, v in prices.items()
+    )
+    
+    # Create the string with sorted, timezone-adjusted prices
+    return ",".join(f"{k.hour:02d}:{v:.2f}" for k, v in local_prices)
 
 
 def get_gas_price(data: EnergyZeroData, hours: int) -> float | None:
