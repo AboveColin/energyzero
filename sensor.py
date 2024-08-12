@@ -120,7 +120,19 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         value_fn=lambda data: data.energy_today.hours_priced_equal_or_lower,
     ),
+    EnergyZeroSensorEntityDescription(
+        key="timestamp_prices",
+        translation_key="timestamp_prices",
+        service_type="today_energy",
+        value_fn=lambda data: process_timestamp_prices(data),
+    ),
 )
+
+def process_timestamp_prices(data: EnergyZeroData) -> str:
+    """Process timestamp prices to a condensed string."""
+    prices = data.energy_today.prices
+    return ",".join(f"{h:02d}:{p:.2f}" for h, p in 
+                    ((k.hour, v) for k, v in prices.items()))
 
 
 def get_gas_price(data: EnergyZeroData, hours: int) -> float | None:
@@ -190,6 +202,6 @@ class EnergyZeroSensorEntity(
         )
 
     @property
-    def native_value(self) -> float | datetime | None:
+    def native_value(self) -> float | datetime | str | None:
         """Return the state of the sensor."""
         return self.entity_description.value_fn(self.coordinator.data)
