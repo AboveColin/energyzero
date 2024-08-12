@@ -25,7 +25,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, SERVICE_TYPE_DEVICE_NAMES
 from .coordinator import EnergyZeroData, EnergyZeroDataUpdateCoordinator
@@ -35,7 +34,7 @@ from .coordinator import EnergyZeroData, EnergyZeroDataUpdateCoordinator
 class EnergyZeroSensorEntityDescription(SensorEntityDescription):
     """Describes an EnergyZero sensor entity."""
 
-    value_fn: Callable[[HomeAssistant, EnergyZeroData], float | datetime | str | None]
+    value_fn: Callable[[EnergyZeroData], float | datetime | None]
     service_type: str
 
 
@@ -137,23 +136,19 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
         translation_key="timestamp_prices",
         name="Hourly Prices Today",
         service_type="today_energy",
-        value_fn=lambda hass, data: process_timestamp_prices(hass, data),
+        value_fn=lambda data: process_timestamp_prices(data),
     ),
 )
 
-def process_timestamp_prices(hass: HomeAssistant, data: EnergyZeroData) -> str:
-    """Process timestamp prices to a condensed string, adjusting for local timezone."""
+def process_timestamp_prices(data: EnergyZeroData) -> str:
+    """Process timestamp prices to a condensed string with timezone adjustment."""
     prices = data.energy_today.prices
-    local_tz = dt_util.get_time_zone(hass.config.time_zone)
-    
-    # Convert UTC times to local timezone and sort
-    local_prices = sorted(
-        (dt_util.as_local(k.replace(tzinfo=dt_util.UTC)).replace(tzinfo=None), v)
-        for k, v in prices.items()
+    # Sort the prices by their timestamp
+    sorted_prices = sorted(prices.items(), key=lambda x: x[0])
+    # Create the string with sorted prices, adding 2 hours to each timestamp
+    return ",".join(
+        f"{(k + timedelta(hours=2)).hour:02d}:{v:.2f}" for k, v in sorted_prices
     )
-    
-    # Create the string with sorted, timezone-adjusted prices
-    return ",".join(f"{k.hour:02d}:{v:.2f}" for k, v in local_prices)
 
 
 def get_gas_price(data: EnergyZeroData, hours: int) -> float | None:
@@ -223,9 +218,7 @@ class EnergyZeroSensorEntity(
             name=SERVICE_TYPE_DEVICE_NAMES[self.entity_description.service_type],
         )
 
-@property
-def native_value(self) -> float | datetime | str | None:
-    """Return the state of the sensor."""
-    if self.entity_description.key == "timestamp_prices":
-        return self.entity_description.value_fn(self.hass, self.coordinator.data)
-    return self.entity_description.value_fn(self.coordinator.data)
+    @property
+    def native_value(self) -> float | datetime | str | None:
+        """Return the state of the sensor."""
+        return self.entity_description.value_fn(self.coordinator.data)
