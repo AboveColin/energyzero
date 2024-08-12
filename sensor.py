@@ -132,23 +132,21 @@ SENSORS: tuple[EnergyZeroSensorEntityDescription, ...] = (
         value_fn=lambda data: data.energy_today.hours_priced_equal_or_lower,
     ),
     EnergyZeroSensorEntityDescription(
-        key="timestamp_prices",
-        translation_key="timestamp_prices",
+        key="hourly_prices",
+        translation_key="hourly_prices",
         name="Hourly Prices Today",
         service_type="today_energy",
-        value_fn=lambda data: process_timestamp_prices(data),
+        value_fn=lambda data: process_hourly_prices(data),
     ),
 )
 
-def process_timestamp_prices(data: EnergyZeroData) -> str:
-    """Process timestamp prices to a condensed string with timezone adjustment."""
+def process_hourly_prices(data: EnergyZeroData) -> str:
+    """Process hourly prices to a condensed string of prices only."""
     prices = data.energy_today.prices
     # Sort the prices by their timestamp
     sorted_prices = sorted(prices.items(), key=lambda x: x[0])
-    # Create the string with sorted prices, adding 2 hours to each timestamp
-    return ",".join(
-        f"{(k + timedelta(hours=2)).hour:02d}:{v:.2f}" for k, v in sorted_prices
-    )
+    # Create the string with sorted prices only
+    return ",".join(f"{v:.2f}" for _, v in sorted_prices)
 
 
 def get_gas_price(data: EnergyZeroData, hours: int) -> float | None:
